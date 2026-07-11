@@ -277,6 +277,28 @@
     save();
     return { bonus, newAch };
   }
+  // Чекпоинт незаконченного урока: сохраняем этап и накопленный счёт,
+  // чтобы можно было продолжить с того же места после выхода/перезагрузки.
+  function lessonEntry(lid, idx) {
+    P.lessons[lid] = P.lessons[lid] || {};
+    return P.lessons[lid][idx] = P.lessons[lid][idx] ||
+      { best: null, last: null, attempts: 0, history: [], passedAt: null };
+  }
+  function saveCheckpoint() {
+    if (teacherOn() || !P || !cur) return;
+    const e = lessonEntry(cur.level.id, cur.idx);
+    e.resume = { stage: cur.stage, ok: cur.ok, total: cur.total };
+    save();
+  }
+  function clearCheckpoint(lid, idx) {
+    if (!P) return;
+    const e = P.lessons[lid] && P.lessons[lid][idx];
+    if (e && e.resume) { delete e.resume; save(); }
+  }
+  function getCheckpoint(lid, idx) {
+    const e = P && P.lessons[lid] && P.lessons[lid][idx];
+    return (e && e.resume && e.resume.stage >= 1 && e.resume.stage <= 4) ? e.resume : null;
+  }
   function recordStory(lid, si, okCount, total) {
     if (teacherOn() || !P) return { gained: 0, newAch: [] };
     P.stories[lid] = P.stories[lid] || {};
@@ -549,8 +571,10 @@
       const stOpen = studentUnlocked(l.id, i);
       const open = ton || stOpen;
       const starsHtml = b !== null ? `<span class="stars">${starsStr(b)}</span>` : "";
+      const cp = !ton ? getCheckpoint(l.id, i) : null;
       let meta;
-      if (stOpen) meta = `${ls.w.length} слов${b !== null ? ` · лучший результат ${b}%` : ""}`;
+      if (cp) meta = `⏸ продолжить с этапа «${(STAGES[cp.stage] || {}).name || ""}»`;
+      else if (stOpen) meta = `${ls.w.length} слов${b !== null ? ` · лучший результат ${b}%` : ""}`;
       else if (ton) meta = `👁 просмотр · 🔒 у ученика закрыт`;
       else meta = "Пройди предыдущий урок";
       const unlockBtn = ton && !stOpen
@@ -684,14 +708,48 @@
   ];
   let cur = null;
 
-  function startLesson(l, idx) {
+  function startLesson(l, idx, opts) {
+    opts = opts || {};
+    // Есть незаконченный урок? Сначала спросим — продолжить или заново.
+    if (!opts.fresh && !opts.resume) {
+      const cp = getCheckpoint(l.id, idx);
+      if (cp) return resumePrompt(l, idx, cp);
+    }
+    const cp = opts.resume ? getCheckpoint(l.id, idx) : null;
     const lesson = l.lessons[idx];
     cur = {
       level: l, idx, lesson,
       words: lesson.w.map(a => ({ w: a[0], ipa: a[1], ru: a[2] })),
-      stage: 0, ok: 0, total: 0
+      stage: cp ? cp.stage : 0,
+      ok: cp ? cp.ok : 0,
+      total: cp ? cp.total : 0
     };
     drawStage();
+  }
+
+  function resumePrompt(l, idx, cp) {
+    const st = STAGES[cp.stage] || { icon: "", name: "" };
+    app.innerHTML = `
+      <div class="lesson-wrap fade-in">
+        <div class="lesson-top">
+          <a class="exit" href="#/level/${l.id}" title="Выйти">✕</a>
+          <h2>Урок ${idx + 1}: ${esc(l.lessons[idx].t)}</h2>
+        </div>
+        <div class="stage-card">
+          <div class="result-emoji">⏸️</div>
+          <h2 style="margin-top:8px">Продолжить урок?</h2>
+          <div class="result-msg">Ты остановился на этапе «${st.icon} ${st.name}».<br>Текущий счёт: ⭐ ${cp.ok} / ${cp.total}. Продолжим с этого места?</div>
+          <div class="result-actions">
+            <button class="btn primary big" id="resumeBtn">▶ Продолжить с этапа «${st.name}»</button>
+            <button class="btn" id="restartBtn">🔄 Начать урок заново</button>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById("resumeBtn").addEventListener("click", () => startLesson(l, idx, { resume: true }));
+    document.getElementById("restartBtn").addEventListener("click", () => {
+      clearCheckpoint(l.id, idx);
+      startLesson(l, idx, { fresh: true });
+    });
   }
 
   function shell(inner) {
@@ -727,7 +785,11 @@
       default: return stageResult();
     }
   }
-  function nextStage() { cur.stage++; drawStage(); }
+  function nextStage() {
+    cur.stage++;
+    if (cur.stage <= 4) saveCheckpoint();   // сохраняем достигнутый этап (кроме экрана результата)
+    drawStage();
+  }
 
   /* --- этап 1: карточки слов --- */
   function stageLearn() {
@@ -956,6 +1018,7 @@
     const st = stars(pct);
     const ton = teacherOn();
     const { bonus, newAch } = recordLesson(cur.level.id, cur.idx, pct);
+    clearCheckpoint(cur.level.id, cur.idx);   // урок завершён — незаконченного чекпоинта больше нет
     topbar();
 
     const emoji = st === 3 ? "🏆" : st === 2 ? "🎉" : st === 1 ? "👍" : "💪";
@@ -998,7 +1061,7 @@
       </div>`);
     if (st >= 1) fx(true);
 
-    document.getElementById("repeatBtn").addEventListener("click", () => startLesson(cur.level, cur.idx));
+    document.getElementById("repeatBtn").addEventListener("click", () => startLesson(cur.level, cur.idx, { fresh: true }));
     app.querySelectorAll("[data-go]").forEach(b =>
       b.addEventListener("click", () => {
         const target = b.dataset.go;
