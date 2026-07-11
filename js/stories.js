@@ -127,20 +127,20 @@ const STORIES = {
       ]
     },
     {
-      t: "My Friend Dana", ru: "Моя подруга Дана", after: 9,
+      t: "Our Teacher Aigerim", ru: "Наша учительница Айгерим", after: 9,
       p: [
-        "My friend Dana is tall and thin. She has long black hair and big brown eyes. She is pretty and very kind.",
-        "Dana is clever and funny. She is never rude. She is polite, honest and friendly. All people like her. She helps her mother at home: she washes and cleans.",
-        "Dana's mother is a doctor. Her father is an engineer. Her brother is a singer — he sings in the morning, in the day and in the night. He is loud!",
-        "Dana wants to be an artist. She draws animals, houses and the sea. Her pictures are beautiful. In the park we draw: I draw a dog, she draws a horse. My dog looks like a mouse! I think she is very smart.",
-        "In March Dana has a birthday. She invites guests to the party: me, Tim and five girls from our class. Her grandmother makes a big sweet cake with apples. We eat cake, drink juice, play games and dance. We laugh very much!",
-        "I give her a gift: new pencils and paper for her pictures. She smiles: «Thanks! You are a good friend.» I am proud of my friend Dana."
+        "Hello! My name is Aigerim. I am twenty-five. I am a teacher of English, and this website is for my students. Welcome!",
+        "I live in Shymkent. It is a big warm city. But I am from Kokshetau — my family and my old school are there. Now my home is in Shymkent.",
+        "I love my work very much. My students are young and clever. We read, write, play games and laugh. When a student reads his first words in English, I am proud and happy!",
+        "Why English? English is the number one world language. With English you can work in other countries, travel and have new friends. It opens all doors!",
+        "I love to travel. My number one countries are Morocco and Turkey. The sea, the sun, the old cities, new food and new people — travel is my hobby.",
+        "And you? Learn twenty new words, read the stories — and we travel to English together! Good luck, my students!"
       ],
       q: [
-        { q: "Какие волосы у Даны?", o: ["Короткие белые", "Длинные чёрные", "Рыжие", "Серые"], a: 1 },
-        { q: "Кем работает мама Даны?", o: ["Медсестрой", "Врачом", "Учителем", "Художником"], a: 1 },
-        { q: "Кем хочет стать Дана?", o: ["Певицей", "Врачом", "Художницей", "Инженером"], a: 2 },
-        { q: "Когда у Даны день рождения?", o: ["В январе", "В марте", "В мае", "В июле"], a: 1 }
+        { q: "Кем работает Айгерим?", o: ["Врачом", "Учителем английского", "Журналисткой", "Гидом"], a: 1 },
+        { q: "Где Айгерим живёт сейчас?", o: ["В Кокшетау", "В Шымкенте", "В Алматы", "В Турции"], a: 1 },
+        { q: "Откуда Айгерим родом?", o: ["Из Шымкента", "Из Кокшетау", "Из Марокко", "Из Астаны"], a: 1 },
+        { q: "Какие страны она любит?", o: ["Марокко и Турцию", "Италию и Францию", "Японию и Китай", "США и Канаду"], a: 0 }
       ]
     },
     {
@@ -367,6 +367,16 @@ const SERVICE_WORDS = {
   "i'm": ["aɪm", "я (= I am)"],
   "let's": ["lets", "давай(те)"],
   "count": ["kaʊnt", "считать"],
+  "live": ["lɪv", "жить"],
+  "world": ["wɜːld", "мир (планета)"],
+  "english": ["ˈɪŋglɪʃ", "английский (язык)"],
+  "learn": ["lɜːn", "учить, узнавать"],
+  "together": ["təˈgeðə", "вместе"],
+  "luck": ["lʌk", "удача"],
+  "morocco": ["məˈrɒkəʊ", "Марокко (страна)"],
+  "turkey": ["ˈtɜːki", "Турция; индейка"],
+  "shymkent": ["ʃɪmˈkent", "Шымкент (город)"],
+  "kokshetau": ["kɒkʃeˈtaʊ", "Кокшетау (город)"],
   "café": ["ˈkæfeɪ", "кафе"],
   "story": ["ˈstɔːri", "история, рассказ"],
   "show": ["ʃəʊ", "показывать"],
