@@ -10,8 +10,15 @@
     POOLS[l.id] = l.lessons.flatMap(ls => ls.w.map(a => ({ w: a[0], ipa: a[1], ru: a[2] })));
     POOLS[l.id].forEach(x => { const k = x.w.toLowerCase(); if (!WORD_INFO[k]) WORD_INFO[k] = x; });
   });
+  // Домешиваем истории «Мой Казахстан» в общий список историй (с флагом kz).
+  if (typeof STORIES_KZ !== "undefined") {
+    Object.keys(STORIES_KZ).forEach(lid => {
+      if (STORIES[lid]) STORIES_KZ[lid].forEach(s => STORIES[lid].push(Object.assign({ kz: true }, s)));
+    });
+  }
   const TOTAL_LESSONS = LEVELS.reduce((n, l) => n + l.lessons.length, 0);
   const TOTAL_STORIES = LEVELS.reduce((n, l) => n + (STORIES[l.id] || []).length, 0);
+  const KZ_COUNT = LEVELS.reduce((n, l) => n + (STORIES[l.id] || []).filter(s => s.kz).length, 0);
 
   const PASS = 70;              // % для зачёта урока
   const QUIZ_N = 10;            // вопросов в каждой игре с вариантами
@@ -431,6 +438,7 @@
       if (si >= 0 && si < STORIES[lid].length && unlockedStory(lid, si)) return renderStory(LV[lid], si);
       return renderLevel(LV[lid]);
     }
+    if (parts[0] === "kz") return renderKz();
     if (parts[0] === "stats") {
       const pid = parts[1];
       if (!pid || pid === activeId) return renderStats(activeId, { own: true, backTo: "#/" });
@@ -554,7 +562,10 @@
           <span class="chip">🚫 Никакой грамматики</span>
         </div>
         ${streak ? `<p class="streak-line">🔥 Твоя серия: ${streak} дн. подряд — так держать!</p>` : ""}
-        <div style="margin-top:18px"><button class="btn" data-go="#/stats">📊 Моя статистика</button></div>
+        <div style="margin-top:18px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap">
+          <button class="btn" data-go="#/stats">📊 Моя статистика</button>
+          ${KZ_COUNT ? `<button class="btn" data-go="#/kz">🇰🇿 Мой Казахстан</button>` : ""}
+        </div>
       </section>
       <section class="levels">${cards}</section>`;
 
@@ -596,7 +607,10 @@
                <button class="btn small" id="resetUnlock">♻️ Вернуть обычный порядок</button>` : ""}
       </div>` : "";
 
+    let storyNum = 0;
     const storyCards = (STORIES[l.id] || []).map((s, i) => {
+      if (s.kz) return "";   // истории про Казахстан — в своём разделе, не тут
+      storyNum++;
       const open = unlockedStory(l.id, i);
       const stOpen = studentStoryUnlocked(l.id, i);
       const r = storyRec(l.id, i);
@@ -608,7 +622,7 @@
       if (ton && !stOpen) status += " · 👁 просмотр";
       return `
         <button class="lesson-card story-card fade-in ${open ? "" : "locked"}" data-s="${i}" ${open ? "" : "disabled"} style="--ac:${l.color}">
-          <span class="num">📕 История ${i + 1}</span>
+          <span class="num">📕 История ${storyNum}</span>
           <span class="name">${esc(s.t)}</span>
           <span class="meta">${esc(s.ru)}</span>
           <span class="meta">${status}</span>
@@ -629,7 +643,8 @@
       <div class="lessons">${cards}</div>
       <h3 class="sec-title">📕 Истории для чтения</h3>
       <p class="hint-note">Истории написаны из слов уроков. Нажимай на любое слово в тексте — увидишь перевод и услышишь произношение. Новая история открывается после каждых трёх уроков.</p>
-      <div class="lessons">${storyCards}</div>`;
+      <div class="lessons">${storyCards}</div>
+      ${KZ_COUNT ? `<p class="hint-note" style="margin-top:14px">🇰🇿 А ещё есть истории про Казахстан — <a href="#/kz">открыть раздел «Мой Казахстан»</a>.</p>` : ""}`;
 
     app.querySelectorAll(".lesson-card:not(.locked):not(.story-card)").forEach(c =>
       c.addEventListener("click", () => { location.hash = `#/lesson/${l.id}/${c.dataset.i}`; }));
@@ -1120,8 +1135,55 @@
     sheet.querySelector("[data-ws-close]").addEventListener("click", () => sheet.remove());
   }
 
+  // Раздел «🇰🇿 Мой Казахстан» — все истории про Казахстан из всех уровней
+  function renderKz() {
+    const ton = teacherOn();
+    let readN = 0, totalN = 0;
+    const cards = LEVELS.flatMap(l =>
+      (STORIES[l.id] || []).map((s, i) => ({ s, i, l }))
+        .filter(x => x.s.kz)
+        .map(({ s, i, l }) => {
+          totalN++;
+          const open = unlockedStory(l.id, i);
+          const stOpen = studentStoryUnlocked(l.id, i);
+          const r = storyRec(l.id, i);
+          if (r && r.read) readN++;
+          const words = s.p.join(" ").split(/\s+/).length;
+          let status;
+          if (!open) status = `🔒 Откроется на уровне ${l.id.toUpperCase()} (урок ${s.after})`;
+          else if (r && r.read) status = `✅ Прочитано · тест ${r.best}%`;
+          else status = `~${words} слов · читать`;
+          if (ton && !stOpen) status += " · 👁 просмотр";
+          return `
+            <button class="lesson-card story-card fade-in ${open ? "" : "locked"}" data-lid="${l.id}" data-s="${i}" ${open ? "" : "disabled"} style="--ac:${l.color}">
+              <span class="num" style="color:${l.color}">🇰🇿 ${l.id.toUpperCase()}</span>
+              <span class="name">${esc(s.t)}</span>
+              <span class="meta">${esc(s.ru)}</span>
+              <span class="meta">${status}</span>
+            </button>`;
+        })
+    ).join("");
+
+    app.innerHTML = `
+      <div class="page-head fade-in">
+        <a class="back-link" href="#/">← На главную</a>
+        <h2>🇰🇿 Мой Казахстан</h2>
+      </div>
+      <p class="hint-note">Истории про родную страну — Шымкент, аул, Наурыз, бешбармак, Казахстан, Алматы и Астану. Написаны из уже выученных слов: нажимай на любое слово, чтобы услышать и увидеть перевод. Открываются по мере прохождения уроков.</p>
+      <div class="level-progress">
+        <div class="bar" style="--ac:#22c55e"><i style="width:${totalN ? Math.round(readN / totalN * 100) : 0}%"></i></div>
+        <span>${readN} / ${totalN}</span>
+      </div>
+      <div class="lessons">${cards}</div>`;
+
+    app.querySelectorAll(".story-card:not(.locked)").forEach(c =>
+      c.addEventListener("click", () => { location.hash = `#/story/${c.dataset.lid}/${c.dataset.s}`; }));
+  }
+
   function renderStory(l, si) {
     const s = STORIES[l.id][si];
+    const isKz = !!s.kz;
+    const backHref = isKz ? "#/kz" : `#/level/${l.id}`;
     const wordsCount = s.p.join(" ").split(/\s+/).length;
     const parasHtml = s.p.map((para, pi) => {
       const html = para.replace(/[A-Za-zÀ-ÿ']+/g, m => `<span class="tw">${m}</span>`);
@@ -1132,11 +1194,11 @@
       <div class="lesson-wrap fade-in">
         ${teacherOn() ? `<div class="teach-note">👁 Просмотр преподавателя — результаты не сохраняются</div>` : ""}
         <div class="lesson-top">
-          <a class="exit" href="#/level/${l.id}" title="К уровню">✕</a>
-          <h2>📕 ${esc(s.t)} <span class="story-sub">· ${esc(s.ru)}</span></h2>
+          <a class="exit" href="${backHref}" title="${isKz ? "В раздел «Мой Казахстан»" : "К уровню"}">✕</a>
+          <h2>${isKz ? "🇰🇿" : "📕"} ${esc(s.t)} <span class="story-sub">· ${esc(s.ru)}</span></h2>
           <button class="btn small" id="listenBtn">▶ Слушать</button>
         </div>
-        <div class="story-meta">~${wordsCount} слов · история ${si + 1} из ${STORIES[l.id].length} · уровень ${l.id.toUpperCase()}</div>
+        <div class="story-meta">~${wordsCount} слов · ${isKz ? "🇰🇿 Мой Казахстан" : `история ${si + 1} из ${(STORIES[l.id] || []).filter(x => !x.kz).length}`} · уровень ${l.id.toUpperCase()}</div>
         <div class="stage-card story-box">
           <p class="hint-note" style="margin-top:0">👆 Нажми на любое слово — перевод и произношение.</p>
           <div class="story-text">${parasHtml}</div>
@@ -1202,7 +1264,9 @@
       topbar();
       const pct = Math.round(ok / total * 100);
       const emoji = pct === 100 ? "🏆" : pct >= 75 ? "🎉" : pct >= 50 ? "👍" : "💪";
-      const next = si + 1 < STORIES[l.id].length && unlockedStory(l.id, si + 1)
+      const isKz = !!s.kz;
+      const backHref = isKz ? "#/kz" : `#/level/${l.id}`;
+      const next = si + 1 < STORIES[l.id].length && STORIES[l.id][si + 1].kz === isKz && unlockedStory(l.id, si + 1)
         ? `<button class="btn primary big" data-go="#/story/${l.id}/${si + 1}">Следующая история →</button>` : "";
       const achHtml = res.newAch.length
         ? `<div class="result-msg" style="margin-top:14px"><b>Новые достижения!</b></div>
@@ -1212,10 +1276,10 @@
           <div class="result-emoji">${emoji}</div>
           <div class="result-pct">${pct}%</div>
           ${ton ? `<div class="result-msg">👁 Режим просмотра — результат не сохранён</div>` : `<div class="xp-gain">+${res.gained} XP</div>`}
-          <div class="result-msg">Правильно: ${ok} из ${total}. История прочитана! 📕</div>
+          <div class="result-msg">Правильно: ${ok} из ${total}. История прочитана! ${isKz ? "🇰🇿" : "📕"}</div>
           ${achHtml}
           <div class="result-actions">
-            <button class="btn" data-go="#/level/${l.id}">К уровню</button>
+            <button class="btn" data-go="${backHref}">${isKz ? "В раздел «Мой Казахстан»" : "К уровню"}</button>
             ${next}
           </div>
         </div>`;
